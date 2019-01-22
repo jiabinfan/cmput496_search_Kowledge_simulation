@@ -260,25 +260,44 @@ class GtpConnection():
         play a move args[1] for given color args[0] in {'b','w'}
         """
         try:
+            if (args[0] not in ['b','w','B','W']):
+                self.error('illegal move: "{}" wrong color'.format(args[0]))
+                return
             board_color = args[0].lower()
-            board_move = args[1]
+            board_move = args[1].lower()
             color = color_to_int(board_color)
-            if args[1].lower() == 'pass':
-                self.board.play_move(PASS, color)
-                self.board.current_player = GoBoardUtil.opponent(color)
-                self.respond()
-                return
-            coord = move_to_coord(args[1], self.board.size)
-            if coord:
-                move = coord_to_point(coord[0],coord[1], self.board.size)
+            if board_move[0].isalpha() and board_move[1:].isdigit():
+                if not 2 <= self.board.size <= MAXSIZE:
+                    raise ValueError("board_size out of range")
+                try:
+                    col_c = board_move[0]
+                    if (not "a" <= col_c <= "z") or col_c == "i":
+                        self.error('illegal move: "{}" wrong coordinate'.format(board_move))
+                        return
+                    col = ord(col_c) - ord("a")
+                    if col_c < "i":
+                        col += 1
+                    row = int(board_move[1:])
+                    if row < 1:
+                        self.error('illegal move: "{}" wrong coordinate'.format(board_move))
+                        return
+                except (IndexError):
+                    self.error('illegal move: "{}" wrong coordinate'.format(board_move))
+                    return
+                if not (col <= self.board.size and row <= self.board.size):
+                    self.error('illegal move: "{}" wrong coordinate'.format(board_move))
+                    return
+                coord = (row, col)
             else:
-                self.error("Error executing move {} converted from {}"
-                           .format(move, args[1]))
+                self.error('illegal move: "{}" wrong coordinate'.format(board_move))
                 return
-            if not self.board.play_move(move, color):
-                self.respond("Illegal Move: {}".format(board_move))
+            move = coord_to_point(coord[0],coord[1], self.board.size)
+            if move not in self.board.get_empty_points():
+                self.error('illegal move: "{}" occupied'.format(board_move))
                 return
             else:
+                self.board.board[move] = color
+                self.current_player = GoBoardUtil.opponent(color)
                 self.debug_msg("Move: {}\nBoard:\n{}\n".
                                 format(board_move, self.board2d()))
             self.respond()
