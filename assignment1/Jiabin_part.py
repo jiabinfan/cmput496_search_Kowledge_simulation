@@ -217,6 +217,7 @@ class GtpConnection():
             return sorted_moves
 
     def gogui_rules_legal_random_moves_cmd(self,args):
+       """ Implement this function for Assignment 1 """
         legal_moves = self.gogui_rules_legal_moves_cmd(args)
         length = len(legal_moves)
         if length > 0:
@@ -251,8 +252,118 @@ class GtpConnection():
         self.respond(str)
             
     def gogui_rules_final_result_cmd(self, args):
-        """ Implement this function for Assignment 1 """
-        self.respond("unknown")
+
+        #check lines of the board
+        for row in self.board:
+            checking_row_list = [(k,len(list(v))) for k,v in itertools.groupby(row)]
+            for i in checking_row_list:
+                if i[0] == 1 and i[1] >= 5:
+                    #print("black win")
+                    winner = 'black'
+                    self.respond(winner)                
+                    return winner 
+                elif i[0] == 0 and i[1] >= 5 :
+                    #print("white win")
+                    winner = 'white'
+                    self.respond(winner)
+                    return winner
+
+        #check colum
+        for num in range(self.boardsize):
+            col = [row[num] for row in self.board]
+            checking_col_list = [(k,len(list(v))) for k,v in itertools.groupby(col)]
+            for i in checking_col_list:
+                if i[0] == 1 and i[1] >= 5:
+                    #print("black win")
+                    winner = 'black'
+                    self.respond(winner)
+                    return winner 
+                elif i[0] == 0 and i[1] >= 5 :
+                    #print("white win")
+                    winner = 'white'
+                    self.respond(winner)
+                    return winner  
+
+        #check diagonal
+        row_left = len(self.board)
+        col_left = len(self.board[0])
+        lim=0
+
+        result_left = []#this will make a diagonl left solution list
+        for i in range(row_left):
+            for j in range(lim,col_left):  # forward j
+                sub_re = []
+                i1, j1 = i, j  
+                while i1 <= row_left - 1 and j1 >=0:
+                    sub_re.append(self.board[i1][j1])
+                    j1 -= 1
+                    i1 += 1
+                if i==0 and j==col_left-1:
+                    lim=col_left-1
+                result_left.append(sub_re)
+
+        for u in result_left:
+            checking_dia_left_list = [(k,len(list(v))) for k,v in itertools.groupby(u)]
+            for i in checking_dia_left_list:
+                if i[0] == 1 and i[1] >= 5:
+                    #print("black win")
+                    winner = 'black'
+                    self.respond(winner)
+                    return winner 
+                elif i[0] == 0 and i[1] >= 5 :
+                    #print("white win")
+                    winner = 'white'
+                    self.respond(winner)
+                    return winner  
+
+        row_right = len(self.board)
+        col_right = len(self.board[0])
+        col2_right = col_right
+        result_right = []#this will make a diagonl right solution list
+
+        for i in range(row_right):
+            for j in range(col2_right - 1, -1, -1): #backward j
+                sub_re = []
+                i1, j1 = i, j 
+                while i1 <= row_right - 1 and j1 <= col_right - 1:
+                    sub_re.append(self.board[i1][j1])
+                    j1 += 1
+                    i1 += 1
+                result_right.append(sub_re)
+                if i == 0 and j == 0:#when achieve the (0,0)let j = 0stable
+                    col2_right = 1
+
+        for u in result_right:
+            checking_dia_right_list = [(k,len(list(v))) for k,v in itertools.groupby(u)]
+            for i in checking_dia_right_list:
+                if i[0] == 1 and i[1] >= 5:
+                    #print("black win")
+                    winner = 'black'
+                    self.respond(winner)
+                    return winner 
+                elif i[0] == 0 and i[1] >= 5 :
+                    #print("white win")
+                    winner = 'white'
+                    self.respond(winner)
+                    return winner 
+
+        #check draw
+        empty_sum = 0
+        for row in self.board:
+            checking_list = [(k,len(list(v))) for k,v in itertools.groupby(row)]
+            for i in checking_list:
+                if i[0] == 0:
+                    empty_sum += i[1]
+
+        if empty_sum == 0:
+            winner = "draw"
+            self.respond(winner)
+            return winner
+
+        #if game still running return unknown                  
+        winner = "unknown"
+        self.respond(winner)
+        return winner
 
     def play_cmd(self, args):
         """ Modify this function for Assignment 1 """
