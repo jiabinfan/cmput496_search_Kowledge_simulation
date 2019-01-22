@@ -1,30 +1,29 @@
 """
 gtp_connection.py
 Module for playing games of Go using GoTextProtocol
-
-Parts of this code were originally based on the gtp module 
-in the Deep-Go project by Isaac Henrion and Amos Storkey 
+Parts of this code were originally based on the gtp module
+in the Deep-Go project by Isaac Henrion and Amos Storkey
 at the University of Edinburgh.
 """
 import traceback
 from sys import stdin, stdout, stderr
 from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, PASS, \
-                       MAXSIZE, coord_to_point
+    MAXSIZE, coord_to_point
 import numpy as np
 import random
 import itertools
 
+
 class GtpConnection():
 
-    def __init__(self, go_engine, board, debug_mode = False):
+    def __init__(self, go_engine, board, debug_mode=False):
         """
         Manage a GTP connection for a Go-playing engine
-
         Parameters
         ----------
         go_engine:
             a program that can reply to a set of GTP commandsbelow
-        board: 
+        board:
             Represents the current board state.
         """
         self._debug_mode = debug_mode
@@ -54,7 +53,7 @@ class GtpConnection():
         }
 
         # used for argument checking
-        # values: (required number of arguments, 
+        # values: (required number of arguments,
         #          error message on argnum failure)
         self.argmap = {
             "boardsize": (1, 'Usage: boardsize INT'),
@@ -66,14 +65,14 @@ class GtpConnection():
         }
 
     def write(self, data):
-        stdout.write(data) 
+        stdout.write(data)
 
     def flush(self):
         stdout.flush()
 
     def start_connection(self):
         """
-        Start a GTP connection. 
+        Start a GTP connection.
         This function continuously monitors standard input for commands.
         """
         line = stdin.readline()
@@ -96,7 +95,8 @@ class GtpConnection():
         elements = command.split()
         if not elements:
             return
-        command_name = elements[0]; args = elements[1:]
+        command_name = elements[0];
+        args = elements[1:]
         if self.has_arg_error(command_name, len(args)):
             return
         if command_name in self.commands:
@@ -146,7 +146,7 @@ class GtpConnection():
 
     def board2d(self):
         return str(GoBoardUtil.get_twoD_board(self.board))
-        
+
     def protocol_version_cmd(self, args):
         """ Return the GTP protocol version being used (always 2) """
         self.respond('2')
@@ -205,41 +205,45 @@ class GtpConnection():
         List legal moves for color args[0] in {'b','w'}
         """
         """ Implement this function for Assignment 1 """
-        if gogui_rules_final_result_cmd() in ["black","white","draw"]:
+        if self.gogui_rules_final_result_cmd(args) in ["black", "white", "draw"]:
             return []
         else:
-            moves = self.board.get_empty_points()
+            moves = self.board.get_empty_points() ##moves are like a1 b2
+
             gtp_moves = []
             for move in moves:
-                coords = point_to_coord(move,self.board.size)
+                coords = point_to_coord(move, self.board.size)
                 gtp_moves.append(format_point(coords))
-            sorted_moves = " ".join(sorted(gtp_moves))
 
+            sorted_moves = sorted(gtp_moves)
+            self.respond(sorted_moves)
             return sorted_moves
 
-    def gogui_rules_legal_random_moves_cmd(self,args):
-       """ Implement this function for Assignment 1 """
+    def gogui_rules_legal_random_moves_cmd(self, args):
+        """ Implement this function for Assignment 1 """
         legal_moves = self.gogui_rules_legal_moves_cmd(args)
         length = len(legal_moves)
         if length > 0:
-            rand_index = random.randint(0, length)
+            rand_index = random.randint(0, length) % length
             return legal_moves[rand_index]
         else:
             return None
+
 
     def gogui_rules_side_to_move_cmd(self, args):
         """ We already implemented this function for Assignment 1 """
         color = "black" if self.board.current_player == BLACK else "white"
         self.respond(color)
 
+
     def gogui_rules_board_cmd(self, args):
         """ We already implemented this function for Assignment 1 """
         size = self.board.size
         str = ''
-        for row in range(size-1, -1, -1):
+        for row in range(size - 1, -1, -1):
             start = self.board.row_start(row + 1)
             for i in range(size):
-                #str += '.'
+                # str += '.'
                 point = self.board.board[start + i]
                 if point == BLACK:
                     str += 'X'
@@ -251,107 +255,117 @@ class GtpConnection():
                     assert False
             str += '\n'
         self.respond(str)
-            
-    def gogui_rules_final_result_cmd(self, args):
 
-        #check lines of the board
-        for row in self.board:
-            checking_row_list = [(k,len(list(v))) for k,v in itertools.groupby(row)]
+
+    def gogui_rules_final_result_cmd(self, args):
+        # check lines of the board
+        board_cc = self.board.board[:-1]
+        board_aa = np.array(board_cc).reshape(self.board.size+2,self.board.size+1)
+        for row in board_aa:
+            checking_row_list = [(k, len(list(v))) for k, v in itertools.groupby(row)]
             for i in checking_row_list:
+
                 if i[0] == 1 and i[1] >= 5:
-                    #print("black win")
+                    # print("black win")
                     winner = 'black'
-                    self.respond(winner)                
-                    return winner 
-                elif i[0] == 0 and i[1] >= 5 :
-                    #print("white win")
+                    self.respond(winner)
+                    return winner
+
+                elif i[0] == 2 and i[1] >= 5:
+                    # print("white win")
                     winner = 'white'
                     self.respond(winner)
                     return winner
 
-        #check colum
-        for num in range(self.boardsize):
-            col = [row[num] for row in self.board]
-            checking_col_list = [(k,len(list(v))) for k,v in itertools.groupby(col)]
+        # check colum
+        for num in range(self.board.size):
+            col = [row[num] for row in board_aa]
+            checking_col_list = [(k, len(list(v))) for k, v in itertools.groupby(col)]
             for i in checking_col_list:
+
                 if i[0] == 1 and i[1] >= 5:
-                    #print("black win")
+                    # print("black win")
                     winner = 'black'
                     self.respond(winner)
-                    return winner 
-                elif i[0] == 0 and i[1] >= 5 :
-                    #print("white win")
+                    return winner
+
+                elif i[0] == 2 and i[1] >= 5:
+                    # print("white win")
                     winner = 'white'
                     self.respond(winner)
-                    return winner  
+                    return winner
 
-        #check diagonal
-        row_left = len(self.board)
-        col_left = len(self.board[0])
-        lim=0
+                    # check diagonal
+        row_left = len(board_aa)
+        col_left = len(board_aa[0])
+        lim = 0
 
-        result_left = []#this will make a diagonl left solution list
+        result_left = []  # this will make a diagonl left solution list
         for i in range(row_left):
-            for j in range(lim,col_left):  # forward j
+            for j in range(lim, col_left):  # forward j
                 sub_re = []
-                i1, j1 = i, j  
-                while i1 <= row_left - 1 and j1 >=0:
-                    sub_re.append(self.board[i1][j1])
+                i1, j1 = i, j
+                while i1 <= row_left - 1 and j1 >= 0:
+                    sub_re.append(board_aa[i1][j1])
                     j1 -= 1
                     i1 += 1
-                if i==0 and j==col_left-1:
-                    lim=col_left-1
+                if i == 0 and j == col_left - 1:
+                    lim = col_left - 1
                 result_left.append(sub_re)
 
         for u in result_left:
-            checking_dia_left_list = [(k,len(list(v))) for k,v in itertools.groupby(u)]
+            checking_dia_left_list = [(k, len(list(v))) for k, v in itertools.groupby(u)]
             for i in checking_dia_left_list:
+
                 if i[0] == 1 and i[1] >= 5:
-                    #print("black win")
+                    # print("black win")
                     winner = 'black'
                     self.respond(winner)
-                    return winner 
-                elif i[0] == 0 and i[1] >= 5 :
-                    #print("white win")
+                    return winner
+
+                elif i[0] == 2 and i[1] >= 5:
+                    # print("white win")
                     winner = 'white'
                     self.respond(winner)
-                    return winner  
+                    return winner
 
-        row_right = len(self.board)
-        col_right = len(self.board[0])
+        row_right = len(board_aa)
+        col_right = len(board_aa[0])
         col2_right = col_right
-        result_right = []#this will make a diagonl right solution list
+        result_right = []  # this will make a diagonl right solution list
 
         for i in range(row_right):
-            for j in range(col2_right - 1, -1, -1): #backward j
+            for j in range(col2_right - 1, -1, -1):  # backward j
                 sub_re = []
-                i1, j1 = i, j 
+                i1, j1 = i, j
                 while i1 <= row_right - 1 and j1 <= col_right - 1:
-                    sub_re.append(self.board[i1][j1])
+                    sub_re.append(board_aa[i1][j1])
                     j1 += 1
                     i1 += 1
                 result_right.append(sub_re)
-                if i == 0 and j == 0:#when achieve the (0,0)let j = 0stable
+                if i == 0 and j == 0:  # when achieve the (0,0)let j = 0stable
                     col2_right = 1
 
         for u in result_right:
-            checking_dia_right_list = [(k,len(list(v))) for k,v in itertools.groupby(u)]
+            checking_dia_right_list = [(k, len(list(v))) for k, v in itertools.groupby(u)]
             for i in checking_dia_right_list:
+
                 if i[0] == 1 and i[1] >= 5:
-                    #print("black win")
+                    # print("black win")
                     winner = 'black'
                     self.respond(winner)
-                    return winner 
-                elif i[0] == 0 and i[1] >= 5 :
-                    #print("white win")
+                    return winner
+
+                elif i[0] == 2 and i[1] >= 5:
+                    # print("white win")
                     winner = 'white'
                     self.respond(winner)
-                    return winner 
+                    return winner
 
-        #check draw
+                # check draw
         empty_sum = 0
-        for row in self.board:
-            checking_list = [(k,len(list(v))) for k,v in itertools.groupby(row)]
+        for row in board_aa:
+            checking_list = [(k, len(list(v))) for k, v in itertools.groupby(row)]
             for i in checking_list:
                 if i[0] == 0:
                     empty_sum += i[1]
@@ -361,10 +375,11 @@ class GtpConnection():
             self.respond(winner)
             return winner
 
-        #if game still running return unknown                  
+        # if game still running return unknown
         winner = "unknown"
         self.respond(winner)
         return winner
+
 
     def play_cmd(self, args):
         """ Modify this function for Assignment 1 """
@@ -372,7 +387,7 @@ class GtpConnection():
         play a move args[1] for given color args[0] in {'b','w'}
         """
         try:
-            if (args[0] not in ['b','w','B','W']):
+            if (args[0] not in ['b', 'w', 'B', 'W']):
                 self.error('illegal move: "{}" wrong color'.format(args[0]))
                 return
             board_color = args[0].lower()
@@ -403,7 +418,7 @@ class GtpConnection():
             else:
                 self.error('illegal move: "{}" wrong coordinate'.format(board_move))
                 return
-            move = coord_to_point(coord[0],coord[1], self.board.size)
+            move = coord_to_point(coord[0], coord[1], self.board.size)
             if move not in self.board.get_empty_points():
                 self.error('illegal move: "{}" occupied'.format(board_move))
                 return
@@ -411,33 +426,43 @@ class GtpConnection():
                 self.board.board[move] = color
                 self.current_player = GoBoardUtil.opponent(color)
                 self.debug_msg("Move: {}\nBoard:\n{}\n".
-                                format(board_move, self.board2d()))
+                               format(board_move, self.board2d()))
             self.respond()
         except Exception as e:
             self.respond('Error: {}'.format(str(e)))
 
+
     def genmove_cmd(self, args):
         """ Modify this function for Assignment 1 """
         """ generate a move for color args[0] in {'b','w'} """
+
         board_color = args[0].lower()
         color = color_to_int(board_color)
-        if gogui_rules_final_result_cmd() == "unknown":
-            #move = self.go_engine.get_move(self.board, color)
-            move = self.gogui_rules_legal_random_moves_cmd()
-            #move_coord = point_to_coord(move, self.board.size)
-            #move_as_string = format_point(move_coord)
+        if self.gogui_rules_final_result_cmd(args) == "unknown":
+            # move = self.go_engine.get_move(self.board, color)
+            legal_moves = self.gogui_rules_legal_moves_cmd(args)
+            length = len(legal_moves)
+            if length > 0:
+                rand_index = random.randint(0, length-1)
+            self.respond(legal_moves)
+            move = legal_moves[rand_index]
+            # move_coord = point_to_coord(move, self.board.size)
+            # move_as_string = format_point(move_coord)
             if move:
-            #if self.board.is_legal(move, color):
-
-                self.board.play_move(move, color)
-                self.respond(move_as_string)
-            #else:
-                #self.respond("Illegal move: {}".format(move_as_string))
+                # if self.board.is_legal(move, color):
+                coord = move_to_coord(move,self.board.size)
+                board_coord = coord_to_point(coord[0],coord[1],self.board.size)
+                #self.board.play_move(move, color)
+                #self.board.board
+                self.board.board[board_coord] = color
+                #self.respond(move_as_string)
+            # else:
+            # self.respond("Illegal move: {}".format(move_as_string))
             else:
                 pass
-        elif gogui_rules_final_result_cmd() == "draw":
-            self.respond("draw")
-        elif gogui_rules_final_result_cmd() != color:
+        elif self.gogui_rules_final_result_cmd(args) == "draw":
+            self.respond("pass")
+        elif self.gogui_rules_final_result_cmd(args) != board_color:
             self.respond("resign")
 
 
@@ -447,8 +472,10 @@ class GtpConnection():
     ==========================================================================
     """
 
+
     def showboard_cmd(self, args):
         self.respond('\n' + self.board2d())
+
 
     def komi_cmd(self, args):
         """
@@ -456,6 +483,7 @@ class GtpConnection():
         """
         self.go_engine.komi = float(args[0])
         self.respond()
+
 
     def known_command_cmd(self, args):
         """
@@ -466,12 +494,16 @@ class GtpConnection():
         else:
             self.respond("false")
 
+
     def list_commands_cmd(self, args):
         """ list all supported GTP commands """
         self.respond(' '.join(list(self.commands.keys())))
 
+
     """ Assignment 1: ignore this command, implement 
         gogui_rules_legal_moves_cmd  above instead """
+
+
     def legal_moves_cmd(self, args):
         """
         List legal moves for color args[0] in {'b','w'}
@@ -489,7 +521,7 @@ class GtpConnection():
 
 def point_to_coord(point, boardsize):
     """
-    Transform point given as board array index 
+    Transform point given as board array index
     to (row, col) coordinate representation.
     Special case: PASS is not transformed
     """
@@ -498,6 +530,7 @@ def point_to_coord(point, boardsize):
     else:
         NS = boardsize + 1
         return divmod(point, NS)
+
 
 def format_point(move):
     """
@@ -509,8 +542,9 @@ def format_point(move):
     row, col = move
     if not 0 <= row < MAXSIZE or not 0 <= col < MAXSIZE:
         raise ValueError
-    return column_letters[col - 1]+ str(row) 
-    
+    return column_letters[col - 1] + str(row)
+
+
 def move_to_coord(point_str, board_size):
     """
     Convert a string point_str representing a point, as specified by GTP,
@@ -538,8 +572,9 @@ def move_to_coord(point_str, board_size):
         raise ValueError("point off board: '{}'".format(s))
     return row, col
 
+
 def color_to_int(c):
     """convert character to the appropriate integer code"""
-    color_to_int = {"b": BLACK , "w": WHITE, "e": EMPTY, 
+    color_to_int = {"b": BLACK, "w": WHITE, "e": EMPTY,
                     "BORDER": BORDER}
-    return color_to_int[c] 
+    return color_to_int[c]
