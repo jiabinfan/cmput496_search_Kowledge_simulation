@@ -205,33 +205,17 @@ class GtpConnection():
         List legal moves for color args[0] in {'b','w'}
         """
         """ Implement this function for Assignment 1 """
-        if self.final_result_helper(args) in ["black", "white", "draw"]:
+        if self.final_result_helper() in ["black", "white", "draw"]:
             self.respond('')
-            return []
         else:
-            gtp_moves = self.find_legal_moves(args)
+            color = self.board.current_player
+            moves = GoBoardUtil.generate_legal_moves(self.board, color)
+            gtp_moves = []
+            for move in moves:
+                coords = point_to_coord(move, self.board.size)
+                gtp_moves.append(format_point(coords))
             sorted_moves = ' '.join(sorted(gtp_moves))
             self.respond(sorted_moves)
-            return sorted_moves
-
-    def find_legal_moves(self,args):
-        moves = self.board.get_empty_points()  ##moves are like a1 b2
-        gtp_moves = []
-        for move in moves:
-            coords = point_to_coord(move, self.board.size)
-            gtp_moves.append(format_point(coords))
-        return gtp_moves
-
-    def gogui_rules_legal_random_moves_cmd(self, args):
-        """ Implement this function for Assignment 1 """
-        legal_moves = self.self.find_legal_moves(args)
-        length = len(legal_moves)
-        if length > 0:
-            rand_index = random.randint(0, length) % length
-            return legal_moves[rand_index]
-        else:
-            return None
-
 
     def gogui_rules_side_to_move_cmd(self, args):
         """ We already implemented this function for Assignment 1 """
@@ -261,10 +245,10 @@ class GtpConnection():
 
 
     def gogui_rules_final_result_cmd(self, args):
-        winner = self.final_result_helper(args)
+        winner = self.final_result_helper()
         self.respond(winner)
 
-    def final_result_helper(self, args):
+    def final_result_helper(self):
         # check lines of the board
         board_cc = self.board.board[:-1]
         board_aa = np.array(board_cc).reshape(self.board.size + 2, self.board.size + 1)
@@ -381,43 +365,24 @@ class GtpConnection():
             board_move = args[1].lower()
             color = color_to_int(board_color)
             if board_move[0].isalpha() and board_move[1:].isdigit():
-                if not 2 <= self.board.size <= MAXSIZE:
-                    raise ValueError("board_size out of range")
-                try:
-                    col_c = board_move[0]
-                    if (not "a" <= col_c <= "z") or col_c == "i":
-                        self.error('illegal move: "{}" wrong coordinate'.format(board_move))
-                        return
-                    col = ord(col_c) - ord("a")
-                    if col_c < "i":
-                        col += 1
-                    row = int(board_move[1:])
-                    if row < 1:
-                        self.error('illegal move: "{}" wrong coordinate'.format(board_move))
-                        return
-                except (IndexError):
+                coord = move_to_coord(args[1], self.board.size)
+                if coord:
+                    move = coord_to_point(coord[0], coord[1], self.board.size)
+                else: 
                     self.error('illegal move: "{}" wrong coordinate'.format(board_move))
                     return
-                if not (col <= self.board.size and row <= self.board.size):
-                    self.error('illegal move: "{}" wrong coordinate'.format(board_move))
-                    return
-                coord = (row, col)
             else:
                 self.error('illegal move: "{}" wrong coordinate'.format(board_move))
                 return
-            move = coord_to_point(coord[0], coord[1], self.board.size)
-            if move not in self.board.get_empty_points():
+            if not self.board.play_move(move, color):
                 self.error('illegal move: "{}" occupied'.format(board_move))
                 return
             else:
-                self.board.board[move] = color
-                self.current_player = GoBoardUtil.opponent(color)
                 self.debug_msg("Move: {}\nBoard:\n{}\n".
                                format(board_move, self.board2d()))
             self.respond()
         except Exception as e:
             self.respond('Error: {}'.format(str(e)))
-
 
     def genmove_cmd(self, args):
         """ Modify this function for Assignment 1 """
@@ -425,18 +390,17 @@ class GtpConnection():
 
         board_color = args[0].lower()
         color = color_to_int(board_color)
-        game_result = self.final_result_helper(args)
+        game_result = self.final_result_helper()
         if game_result == "unknown":
-            legal_moves = self.find_legal_moves(args)
+            legal_moves = GoBoardUtil.generate_legal_moves(self.board, color)
             length = len(legal_moves)
             if length > 0:
                 rand_index = random.randint(0, length-1)
             move = legal_moves[rand_index]
-            self.respond(move)
-            if move:
-                coord = move_to_coord(move, self.board.size)
-                board_coord = coord_to_point(coord[0], coord[1], self.board.size)
-                self.board.board[board_coord] = color
+            coords = point_to_coord(move, self.board.size)
+            gtp_move = format_point(coords)
+            self.board.play_move(move, color)
+            self.respond(gtp_move)
         elif game_result == "draw":
             self.respond("pass")
         elif game_result[0] != board_color:
@@ -531,22 +495,20 @@ def move_to_coord(point_str, board_size):
     if not 2 <= board_size <= MAXSIZE:
         raise ValueError("board_size out of range")
     s = point_str.lower()
-    if s == "pass":
-        return PASS
     try:
         col_c = s[0]
         if (not "a" <= col_c <= "z") or col_c == "i":
-            raise ValueError
+            return False
         col = ord(col_c) - ord("a")
         if col_c < "i":
             col += 1
         row = int(s[1:])
         if row < 1:
-            raise ValueError
-    except (IndexError, ValueError):
-        raise ValueError("invalid point: '{}'".format(s))
+            return False
+    except (IndexError):
+        return False
     if not (col <= board_size and row <= board_size):
-        raise ValueError("point off board: '{}'".format(s))
+        return False
     return row, col
 
 
