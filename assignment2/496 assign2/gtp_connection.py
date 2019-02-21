@@ -210,29 +210,80 @@ class GtpConnection():
         start = time.clock()
         result = self.callAlphabetaDL(2)
         end = time.clock() - start
+
+        
         if end > self.time:
             self.respond("unknown")
             return
+        
         else:
-            self.respond(result)
-            self.respond(GoBoardUtil.opponent(self.board.current_player))
+            '''
+            if result == 0:
+                self.respond("draw")
+                return
+            elif result == 1 or result == -1:
+                if GoBoardUtil.opponent(self.board.current_player) == 1:
+                    self.respond("b")
+                    return
+                if GoBoardUtil.opponent(self.board.current_player) == 2:
+                    self.respond("w")
+                    return'''
+                
+            resulting_list = result[1]
             
+            if resulting_list == []:
+                if result[0] == 0:
+                    self.respond("draw")
+                    return
+                elif result[0] == 1 or result[0] == -1:
+                    if GoBoardUtil.opponent(self.board.current_player) == 1:
+                        self.respond("b")
+                        return
+                    if GoBoardUtil.opponent(self.board.current_player) == 2:
+                        self.respond("w")
+                        return
+                    
+            if result[0] == 0:
+                for i in resulting_list:
+                    coords = point_to_coord(i, self.board.size)
+                    ans = format_point(coords)
+                    self.respond("draw  " + ans)   
+            if GoBoardUtil.opponent(self.board.current_player) == 1 and result[0] != 0:
+                for i in resulting_list:
+                    coords = point_to_coord(i, self.board.size)
+                    ans = format_point(coords)
+                    self.respond("b  " + ans)  
+            elif GoBoardUtil.opponent(self.board.current_player) == 2 and result[0] != 0:
+                for i in resulting_list:
+                    coords = point_to_coord(i, self.board.size)
+                    ans = format_point(coords)
+                    self.respond("w  " + ans)  
+            return
+        
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                
     def alphabetaDL(self, alpha, beta, depth):
+        
         moves = self.board.get_empty_points()
-        board_full = (len(moves) == 0)        
-        if self.board.check_game_end_gomoku()[0] or depth == 0 or board_full:
+        board_full = (len(moves) == 0)   #board full check 
+        win_step = []  
+        if self.board.check_game_end_gomoku()[0] or depth == 0 or board_full: #checking end game, no depth, draw
             return self.staticallyEvaluateForToPlay() 
-        for move in GoBoardUtil.generate_legal_moves_gomoku(self.board):
-            self.board.play_move_gomoku(move, self.board.current_player)
-            value = -self.alphabetaDL(-beta, -alpha, depth - 1)
+        for move in GoBoardUtil.generate_legal_moves_gomoku(self.board): #moves inlegal move
+            self.board.play_move_gomoku(move, self.board.current_player) #play a stone
+            value = -self.alphabetaDL(-beta, -alpha, depth - 1)[0] #alphabeta search
             if value > alpha:
                 alpha = value
+                win_step.clear()
+                win_step.append(move)
+                '''
+            if value == alpha:
+                win_step.append(move)'''
             self.board.undo(move)
             if value >= beta: 
-                return beta   # or value in failsoft (later)
-        return alpha
+                return beta,win_step # or value in failsoft (later)
+                
+        return alpha,win_step
     
     # initial call with full window
     
@@ -245,9 +296,9 @@ class GtpConnection():
         game_end, winner = self.board.check_game_end_gomoku()
         assert winner != self.board.current_player
         if winner == None:
-            return 0
+            return 0,[]
         
-        else: return -1
+        else: return -1,[]
         
      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
         
