@@ -200,32 +200,21 @@ class GtpConnection():
     def reset_time(self, new_time):
 
         self.time = new_time
-    
+        
+
     def solve_cmd(self, args):
         
         #alphabeta_limited_search
         #evaluation function, heuristic function
+        
         start = time.clock()
         result = self.callAlphabetaDL(4)
         end = time.clock() - start
 
-        
         if end > self.time:
             self.respond("unknown")
             return
-        
         else:
-            '''
-            if result == 0:
-                self.respond("draw")
-                return
-            elif result == 1 or result == -1:
-                if GoBoardUtil.opponent(self.board.current_player) == 1:
-                    self.respond("b")
-                    return
-                if GoBoardUtil.opponent(self.board.current_player) == 2:
-                    self.respond("w")
-                    return'''
                 
             resulting_list = result[1]
             
@@ -387,12 +376,15 @@ class GtpConnection():
             self.respond('{}'.format(str(e)))
 
     def genmove_cmd(self, args):
-            """
+        """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
         """
         board_color = args[0].lower()
         color = color_to_int(board_color)
         game_end, winner = self.board.check_game_end_gomoku()
+        start = time.clock()
+        result = self.callAlphabetaDL(4)
+        end = time.clock() - start
         if game_end:
             if winner == color:
                 self.respond("pass")
@@ -401,32 +393,29 @@ class GtpConnection():
             return
         else:
             #win_moves is a list. If toplayer is losing or draw, it only has None, else is has moves that lead him to win
-            win_moves = self.solve_cmd(args)
-            if win_moves == 'overtime':
+            #win_moves = self.solve_cmd(args)
+            win_moves = result[1]
+            if end > self.time or result[0] == -1:
                 move = GoBoardUtil.generate_random_move_gomoku(self.board)
             if move == PASS:
                 self.respond("pass")
                 return
-        move = win_moves[random.randint(0,len(win_moves)-1)]
-        if move == None:
+        move = win_moves[0]
+        '''
+        if result[0] == -1:
             #move = self.go_engine.get_move(self.board, color)
             move = GoBoardUtil.generate_random_move_gomoku(self.board)
             if move == PASS:
                 self.respond("pass")
                 return
-
-        start = time.clock()
+        '''
         move_coord = point_to_coord(move, self.board.size)
         move_as_string = format_point(move_coord)
         if self.board.is_legal_gomoku(move, color):
             self.board.play_move_gomoku(move, color)
             self.respond(move_as_string)
-            end = (time.clock() - start)
-            overtime(end,self.time)
         else:
             self.respond("illegal move: {}".format(move_as_string))
-            end = (time.clock() - start)
-            overtime(end,self.time)
         #~~
     def final_result_helper(self):
         # check lines of the board
