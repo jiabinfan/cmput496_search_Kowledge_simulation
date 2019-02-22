@@ -387,7 +387,7 @@ class GtpConnection():
             self.respond('{}'.format(str(e)))
 
     def genmove_cmd(self, args):
-        """
+            """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
         """
         board_color = args[0].lower()
@@ -399,11 +399,22 @@ class GtpConnection():
             else:
                 self.respond("resign")
             return
-        move = self.go_engine.get_move(self.board, color)
-        if move == PASS:
-            self.respond("pass")
-            return
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        else:
+            #win_moves is a list. If toplayer is losing or draw, it only has None, else is has moves that lead him to win
+            win_moves = self.solve_cmd(args)
+            if win_moves == 'overtime':
+                move = GoBoardUtil.generate_random_move_gomoku(self.board)
+            if move == PASS:
+                self.respond("pass")
+                return
+        move = win_moves[random.randint(0,len(win_moves)-1)]
+        if move == None:
+            #move = self.go_engine.get_move(self.board, color)
+            move = GoBoardUtil.generate_random_move_gomoku(self.board)
+            if move == PASS:
+                self.respond("pass")
+                return
+
         start = time.clock()
         move_coord = point_to_coord(move, self.board.size)
         move_as_string = format_point(move_coord)
@@ -416,8 +427,7 @@ class GtpConnection():
             self.respond("illegal move: {}".format(move_as_string))
             end = (time.clock() - start)
             overtime(end,self.time)
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+        #~~
     def final_result_helper(self):
         # check lines of the board
         board_cc = self.board.board[:-1]
