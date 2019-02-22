@@ -1,7 +1,6 @@
 """
 gtp_connection.py
 Module for playing games of Go using GoTextProtocol
-
 Parts of this code were originally based on the gtp module 
 in the Deep-Go project by Isaac Henrion and Amos Storkey 
 at the University of Edinburgh.
@@ -22,7 +21,6 @@ class GtpConnection():
     def __init__(self, go_engine, board, debug_mode = False, time = 1):
         """
         Manage a GTP connection for a Go-playing engine
-
         Parameters
         ----------
         go_engine:
@@ -208,7 +206,7 @@ class GtpConnection():
         #alphabeta_limited_search
         #evaluation function, heuristic function
         start = time.clock()
-        result = self.callAlphabetaDL(2)
+        result = self.callAlphabetaDL(4)
         end = time.clock() - start
 
         
@@ -235,7 +233,14 @@ class GtpConnection():
                 if result[0] == 0:
                     self.respond("draw")
                     return
-                elif result[0] == 1 or result[0] == -1:
+                elif result[0] == 1:
+                    if self.board.current_player == 1:
+                        self.respond("b")
+                        return
+                    if self.board.current_player == 2:
+                        self.respond("w")
+                        return
+                elif result[0] == -1:
                     if GoBoardUtil.opponent(self.board.current_player) == 1:
                         self.respond("b")
                         return
@@ -243,21 +248,33 @@ class GtpConnection():
                         self.respond("w")
                         return
                     
-            if result[0] == 0:
+            if result[0] == 0: # draw
                 for i in resulting_list:
                     coords = point_to_coord(i, self.board.size)
                     ans = format_point(coords)
-                    self.respond("draw  " + ans)   
-            if GoBoardUtil.opponent(self.board.current_player) == 1 and result[0] != 0:
-                for i in resulting_list:
-                    coords = point_to_coord(i, self.board.size)
+                    self.respond("draw  " + ans)
+            elif result[0] == 1: # our win
+                if self.board.current_player == 1:
+                    coords = point_to_coord(resulting_list[0], self.board.size)
                     ans = format_point(coords)
-                    self.respond("b  " + ans)  
-            elif GoBoardUtil.opponent(self.board.current_player) == 2 and result[0] != 0:
-                for i in resulting_list:
-                    coords = point_to_coord(i, self.board.size)
+                    self.respond("b " + ans)
+                    return
+                if self.board.current_player == 2:
+                    coords = point_to_coord(resulting_list[0], self.board.size)
                     ans = format_point(coords)
-                    self.respond("w  " + ans)  
+                    self.respond("w " + ans)
+                    return
+            elif result[0] == -1: # opponent wins
+                if GoBoardUtil.opponent(self.board.current_player) == 1:
+                    coords = point_to_coord(resulting_list[0], self.board.size)
+                    ans = format_point(coords)
+                    self.respond("b")
+                    return  
+                elif GoBoardUtil.opponent(self.board.current_player) == 2:
+                    coords = point_to_coord(resulting_list[0], self.board.size)
+                    ans = format_point(coords)
+                    self.respond("w")
+                    return  
             return
         
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -631,4 +648,3 @@ def color_to_int(c):
 def overtime(total_time, time):
         
     assert int(total_time) <= int(time)
-
